@@ -19,28 +19,29 @@ const QRCodeScanner = () => {
     setScannedData(data);
     setScannedType(type);
     setLoading(true);
-    await Alert,alert(type, data);
+
+    const payload = { type, data };
+    console.log('Dados sendo enviados:', payload);
+
     try {
-      const response = await fetch('http://10.18.6.57:8000/api/qrcode', {
+      const response = await fetch('http://172.20.10.2:8000/api/qrcode', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-           type : scannedType,
-           data : scannedData
-          }),
+        body: JSON.stringify(payload),
       });
 
-      const result = await response.json();
-      if (response.ok) {
-        Alert.alert('Sucesso!', 'Dados salvos com sucesso.');
-      } else {
-        await Alert,alert(type, data);
-        Alert.alert('Erro!', result.error  || 'Erro ao salvar os dados.');
-      }
+      const result = await response.json(); 
+      console.log('Resposta como texto:', result);
+
+        if (response.ok) {
+          Alert.alert('Sucesso!', 'Dados salvos com sucesso.');
+        } else {
+          Alert.alert('Erro!', result.error || 'Erro ao salvar os dados.');
+        }
     } catch (error) {
-      Alert.alert('Erro!', 'Erro de conexão ou outro erro.');
+      console.error('Erro de conexão:', error);
     } finally {
       setLoading(false);
     }
