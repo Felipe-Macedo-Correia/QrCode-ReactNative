@@ -1,47 +1,70 @@
-import React from 'react';
-import { View, Text, StyleSheet, Alert } from 'react-native';
-import QRCodeScanner from 'react-native-qrcode-scanner';
-import { RNCamera } from 'react-native-camera';
-import axios from 'axios';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, Text, View, Button, Alert } from 'react-native';
+import { BarCodeScanner } from 'expo-barcode-scanner';
 
-const QrCodeScanner = () => {
-  const [qrData, setQrData] = React.useState(null);
+const QRCodeScanner = () => {
+  const [hasPermission, setHasPermission] = useState(null);
+  const [scannedData, setScannedData] = useState(null);
+  const [scannedType, setScannedType] = useState(null);
+  const [loading, setLoading] = useState(false);
 
-  // Função chamada ao ler o QR code
-  const onSuccess = async (e) => {
-    setQrData(e.data); // Salva os dados lidos
+  useEffect(() => {
+    (async () => {
+      const { status } = await BarCodeScanner.requestPermissionsAsync();
+      setHasPermission(status === 'granted');
+    })();
+  }, []);
 
-    // Enviar o QR code lido para o backend
+  const handleBarCodeScanned = async ({ type, data }) => {
+    setScannedData(data);
+    setScannedType(type);
+    setLoading(true);
+    await Alert,alert(type, data);
     try {
-      const response = await axios.post('https://sua-api-url.com/salvar-dados', {
-        qrData: e.data, // Envia o dado do QR code para a API
+      const response = await fetch('http://10.18.6.57:8000/api/qrcode', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+           type : scannedType,
+           data : scannedData
+          }),
       });
-      
-      // Exibe um alerta de sucesso ao usuário
-      Alert.alert('Sucesso', 'Dados salvos com sucesso no banco!');
-      console.log('Dados enviados com sucesso:', response.data);
+
+      const result = await response.json();
+      if (response.ok) {
+        Alert.alert('Sucesso!', 'Dados salvos com sucesso.');
+      } else {
+        await Alert,alert(type, data);
+        Alert.alert('Erro!', result.error  || 'Erro ao salvar os dados.');
+      }
     } catch (error) {
-      // Exibe um alerta de erro ao usuário
-      Alert.alert('Erro', 'Erro ao salvar os dados.');
-      console.error('Erro ao enviar dados:', error);
+      Alert.alert('Erro!', 'Erro de conexão ou outro erro.');
+    } finally {
+      setLoading(false);
     }
   };
 
+  if (hasPermission === null) {
+    return <Text>Solicitando permissão para acessar a câmera</Text>;
+  }
+  if (hasPermission === false) {
+    return <Text>Sem acesso à câmera</Text>;
+  }
+
   return (
     <View style={styles.container}>
-      {qrData ? (
-        <View>
-          <Text style={styles.text}>QR Code lido com sucesso!</Text>
-          <Text style={styles.qrData}>{qrData}</Text>
+      <BarCodeScanner
+        onBarCodeScanned={scannedData ? undefined : handleBarCodeScanned}
+        style={StyleSheet.absoluteFillObject}
+      />
+      {loading && <Text style={styles.loadingText}>Salvando dados...</Text>}
+      {scannedData && (
+        <View style={styles.overlay}>
+          <Text style={styles.qrText}>Dados do QR Code: {scannedType} - {scannedData}</Text>
+          <Button title="Limpar" onPress={() => setScannedData(null)} />
         </View>
-      ) : (
-        <QRCodeScanner
-          onRead={onSuccess}  // Chama onSuccess quando o QR code for lido
-          flashMode={RNCamera.Constants.FlashMode.auto}  // Flash no modo automático
-          topContent={
-            <Text style={styles.text}>Posicione o QR code no centro da câmera.</Text>
-          }
-        />
       )}
     </View>
   );
@@ -50,19 +73,27 @@ const QrCodeScanner = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  overlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  text: {
-    fontSize: 18,
-    textAlign: 'center',
-    marginBottom: 20,
+  qrText: {
+    color: 'white',
+    fontSize: 20,
+    margin: 20,
   },
-  qrData: {
-    fontSize: 16,
-    color: 'green',
-    marginTop: 10,
+  loadingText: {
+    color: 'white',
+    fontSize: 18,
+    position: 'absolute',
+    bottom: 50,
   },
 });
 
-export default QrCodeScanner;
+export default QRCodeScanner;
